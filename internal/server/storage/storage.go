@@ -18,11 +18,12 @@ type Storage interface {
 	GetCredentials(userID string) ([]internal.Credential, error)
 }
 
+// StorageImpl структура реализующая интерфейс Storage
 type StorageImpl struct {
 	DB *sql.DB
 }
 
-// DBStorage представляет собой подключение к базе данных.
+// DBStorage объект использующийся для использования методов хранилища
 var DBStorage StorageImpl
 
 func ConnectDB(cfg *configs.ServerConfig) error {
