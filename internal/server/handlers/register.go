@@ -5,8 +5,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/sol1corejz/goph-keeper/configs"
-	"github.com/sol1corejz/goph-keeper/internal/client/auth"
 	commonModels "github.com/sol1corejz/goph-keeper/internal/common/models"
+	"github.com/sol1corejz/goph-keeper/internal/server/auth"
 	internal "github.com/sol1corejz/goph-keeper/internal/server/models"
 	storage "github.com/sol1corejz/goph-keeper/internal/server/storage"
 	"golang.org/x/crypto/bcrypt"
@@ -22,10 +22,11 @@ func HashPassword(password string) (string, error) {
 }
 
 func RegisterHandler(c *fiber.Ctx) error {
-	//Получение конфига из контекста
+	// Получение конфига из контекста
 	cfg := c.Locals("config").(*configs.ServerConfig)
 
-	var registerPayload internal.RegisterPayload
+	// Переменная для входных данных
+	var registerPayload internal.AuthPayload
 
 	//Парсинг входных данных
 	err := json.Unmarshal(c.Body(), &registerPayload)
@@ -35,22 +36,23 @@ func RegisterHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	//Генерация айди пользователя
+	// Генерация айди пользователя
 	userUuid := uuid.New().String()
 
-	//Хеширование пароля
+	// Хеширование пароля
 	hashedPassword, err := HashPassword(registerPayload.Password)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{})
 	}
 
-	//Добавление пользователя в базу данных
+	// Добавление пользователя в базу данных
 	userData := commonModels.User{
 		ID:       userUuid,
 		Username: registerPayload.Username,
 		Password: hashedPassword,
 	}
 
+	// Создание пользователя в бд
 	err = storage.DBStorage.CreateUser(userData)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -58,7 +60,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	//Генерация токена
+	// Генерация токена
 	token, err := auth.GenerateToken(cfg, userUuid)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -66,14 +68,16 @@ func RegisterHandler(c *fiber.Ctx) error {
 		})
 	}
 
+	// Установка токена в куки
 	c.Cookie(&fiber.Cookie{
 		Name:     "token",
 		Value:    token,
 		Expires:  time.Now().Add(auth.TokenExp),
 		HTTPOnly: true,
 	})
-	//Отправка ответа
+
+	// Отправка ответа
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"success": userData,
+		"success": "register successfully",
 	})
 }

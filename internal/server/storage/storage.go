@@ -13,7 +13,7 @@ import (
 // Также нужно для написания тестов, чтобы содавать моковое хранилище
 type Storage interface {
 	CreateUser(user internal.User) error
-	GetUser(username, password string) (internal.User, error)
+	GetUser(username string) (internal.User, error)
 	SaveCredential(userID string, cred internal.Credential) error
 	GetCredentials(userID string) ([]internal.Credential, error)
 }
@@ -25,6 +25,7 @@ type StorageImpl struct {
 
 // DBStorage объект использующийся для использования методов хранилища
 var DBStorage StorageImpl
+var ErrNotFound = errors.New("not found")
 
 func ConnectDB(cfg *configs.ServerConfig) error {
 
@@ -44,7 +45,7 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 	_, err = DBStorage.DB.Query(`
 		CREATE TABLE IF NOT EXISTS users (
     		uuid UUID PRIMARY KEY,
-    		username TEXT NOT NULL,
+    		username TEXT NOT NULL UNIQUE,
     		password TEXT NOT NULL
 		)
 	`)
@@ -69,8 +70,21 @@ func (s *StorageImpl) CreateUser(user internal.User) error {
 
 	return nil
 }
-func (s *StorageImpl) GetUser(username, password string) (internal.User, error) {
-	return internal.User{}, nil
+func (s *StorageImpl) GetUser(username string) (internal.User, error) {
+
+	var user internal.User
+	err := DBStorage.DB.QueryRow(`
+		SELECT * FROM users WHERE username=$1
+	`, username).Scan(&user.ID, &user.Username, &user.Password)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return internal.User{}, ErrNotFound
+		}
+		return internal.User{}, err
+	}
+
+	return user, nil
 }
 func (s *StorageImpl) SaveCredential(userID string, cred internal.Credential) error {
 	return nil

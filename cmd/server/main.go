@@ -38,9 +38,7 @@ func main() {
 	// Регистрация маршрутов
 	app.Get("/", internal.RegisterHandler)
 	app.Post("/register", internal.RegisterHandler)
-	app.Post("/login", func(c *fiber.Ctx) error {
-		return c.SendString("login")
-	})
+	app.Post("/login", internal.LoginHandler)
 
 	app.Listen(config.Server.Address)
 }

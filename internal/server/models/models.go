@@ -1,6 +1,6 @@
 package internal
 
-type RegisterPayload struct {
+type AuthPayload struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
