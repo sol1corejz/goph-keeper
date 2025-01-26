@@ -49,7 +49,7 @@ func LoginHandler(c *fiber.Ctx) error {
 	}
 
 	// Генерация токена
-	token, err := auth.GenerateToken(cfg, userData.Password)
+	token, err := auth.GenerateToken(cfg, userData.ID)
 
 	// Установка токена в куки
 	c.Cookie(&fiber.Cookie{

@@ -39,6 +39,8 @@ func main() {
 	app.Get("/", internal.RegisterHandler)
 	app.Post("/register", internal.RegisterHandler)
 	app.Post("/login", internal.LoginHandler)
+	app.Post("/credentials", internal.AddCredentials)
+	app.Get("/credentials", internal.GetCredentials)
 
 	app.Listen(config.Server.Address)
 }

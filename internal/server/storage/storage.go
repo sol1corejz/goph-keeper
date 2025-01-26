@@ -50,7 +50,20 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 		)
 	`)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("failed to create users table:", err)
+		return err
+	}
+
+	_, err = DBStorage.DB.Exec(`
+	CREATE TABLE IF NOT EXISTS credentials (
+			uuid UUID PRIMARY KEY,
+			user_id UUID NOT NULL REFERENCES users(uuid) ON DELETE CASCADE,
+			data TEXT NOT NULL,
+			meta TEXT
+		)
+	`)
+	if err != nil {
+		log.Fatal("failed to create credentials table:", err)
 		return err
 	}
 
@@ -86,9 +99,50 @@ func (s *StorageImpl) GetUser(username string) (internal.User, error) {
 
 	return user, nil
 }
-func (s *StorageImpl) SaveCredential(userID string, cred internal.Credential) error {
+func (s *StorageImpl) SaveCredential(cred internal.Credential) error {
+	_, err := DBStorage.DB.Exec(`
+		INSERT INTO credentials (uuid, user_id, data, meta) VALUES ($1, $2, $3, $4)
+	`, cred.ID, cred.UserID, cred.Data, cred.Meta)
+
+	if err != nil {
+		log.Info("failed to save credential", err.Error())
+		return err
+	}
+
 	return nil
 }
+
 func (s *StorageImpl) GetCredentials(userID string) ([]internal.Credential, error) {
-	return make([]internal.Credential, 0), nil
+	rows, err := DBStorage.DB.Query(`
+		SELECT uuid, user_id, data, meta FROM credentials WHERE user_id=$1
+	`, userID)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Info("failed to find credentials")
+			return nil, ErrNotFound
+		}
+		log.Info("failed to retrieve credentials", err.Error())
+
+		return nil, err
+	}
+	defer rows.Close()
+
+	credentials := make([]internal.Credential, 0)
+	for rows.Next() {
+		var cred internal.Credential
+		err := rows.Scan(&cred.ID, &cred.UserID, &cred.Data, &cred.Meta)
+		if err != nil {
+			log.Info("failed to retrieve credentials", err.Error())
+			return nil, err
+		}
+		credentials = append(credentials, cred)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Info("failed to retrieve credentials", err.Error())
+		return nil, err
+	}
+
+	return credentials, nil
 }

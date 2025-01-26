@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/sol1corejz/goph-keeper/configs"
 	"time"
 )
@@ -20,6 +21,8 @@ type Claims struct {
 var TokenExp = time.Hour * 60
 
 func GenerateToken(config *configs.ServerConfig, userID string) (string, error) {
+
+	log.Info(userID)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -58,6 +61,13 @@ func ParseToken(config *configs.ServerConfig, tokenString string) (string, error
 
 	// Возвращаем UserID из claims
 	log.Info("Token is valid")
+
+	// Проверка, что userID является валидным UUID
+	if _, err = uuid.Parse(claims.UserID); err != nil {
+		log.Info("UserID is not a valid UUID")
+		return "", errors.New("userID in token is not valid")
+	}
+
 	return claims.UserID, nil
 }
 
@@ -67,7 +77,9 @@ func CheckIsAuthorized(config *configs.ServerConfig, token string) (string, erro
 	// Извлекаем UserID из токена
 	userID, err := ParseToken(config, token)
 	if err != nil {
+		log.Info("Authorization failed:", err.Error())
 		return "", errors.New("token is invalid")
 	}
+
 	return userID, nil
 }
