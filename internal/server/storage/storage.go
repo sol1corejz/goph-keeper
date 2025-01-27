@@ -9,26 +9,34 @@ import (
 	internal "github.com/sol1corejz/goph-keeper/internal/common/models"
 )
 
-// Storage - Абстракия для хранилища, для возможного расширения и использования разных видов хранения
-// Также нужно для написания тестов, чтобы содавать моковое хранилище
+// Storage - Интерфейс для абстракции хранилища.
+// Это позволяет легко расширять функциональность и использовать разные виды хранения данных.
+// Также интерфейс упрощает написание тестов, предоставляя возможность создания мокового хранилища.
 type Storage interface {
+	// CreateUser создаёт пользователя в хранилище.
 	CreateUser(user internal.User) error
+	// GetUser возвращает данные пользователя по имени пользователя.
 	GetUser(username string) (internal.User, error)
+	// SaveCredential сохраняет учётные данные для пользователя.
 	SaveCredential(userID string, cred internal.Credential) error
+	// GetCredentials возвращает список учётных данных пользователя по его ID.
 	GetCredentials(userID string) ([]internal.Credential, error)
 }
 
-// StorageImpl структура реализующая интерфейс Storage
+// StorageImpl - Реализация интерфейса Storage с использованием базы данных.
 type StorageImpl struct {
 	DB *sql.DB
 }
 
-// DBStorage объект использующийся для использования методов хранилища
+// DBStorage - Глобальная переменная для доступа к методам хранилища.
 var DBStorage StorageImpl
+
+// ErrNotFound - Ошибка, возвращаемая, если данные не найдены.
 var ErrNotFound = errors.New("not found")
 
+// ConnectDB подключается к базе данных и создаёт необходимые таблицы.
+// Возвращает ошибку, если подключение или создание таблиц не удалось.
 func ConnectDB(cfg *configs.ServerConfig) error {
-
 	if cfg.Storage.ConnectionString == "" {
 		return errors.New("no connection string provided")
 	}
@@ -41,7 +49,7 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 
 	DBStorage.DB = db
 
-	// Создание таблицы users
+	// Создание таблицы пользователей
 	_, err = DBStorage.DB.Query(`
 		CREATE TABLE IF NOT EXISTS users (
     		uuid UUID PRIMARY KEY,
@@ -54,6 +62,7 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 		return err
 	}
 
+	// Создание таблицы учётных данных
 	_, err = DBStorage.DB.Exec(`
 	CREATE TABLE IF NOT EXISTS credentials (
 			uuid UUID PRIMARY KEY,
@@ -70,8 +79,9 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 	return nil
 }
 
+// CreateUser создаёт нового пользователя в базе данных.
+// Принимает структуру пользователя, содержащую ID, имя пользователя и пароль.
 func (s *StorageImpl) CreateUser(user internal.User) error {
-
 	_, err := DBStorage.DB.Exec(`
 		INSERT INTO users (uuid, username, password) VALUES ($1, $2, $3)
 	`, user.ID, user.Username, user.Password)
@@ -83,8 +93,10 @@ func (s *StorageImpl) CreateUser(user internal.User) error {
 
 	return nil
 }
-func (s *StorageImpl) GetUser(username string) (internal.User, error) {
 
+// GetUser возвращает данные пользователя по его имени пользователя.
+// Если пользователь не найден, возвращается ошибка ErrNotFound.
+func (s *StorageImpl) GetUser(username string) (internal.User, error) {
 	var user internal.User
 	err := DBStorage.DB.QueryRow(`
 		SELECT * FROM users WHERE username=$1
@@ -99,6 +111,9 @@ func (s *StorageImpl) GetUser(username string) (internal.User, error) {
 
 	return user, nil
 }
+
+// SaveCredential сохраняет учётные данные пользователя в базу данных.
+// Принимает структуру Credential, содержащую ID, ID пользователя, данные и метаинформацию.
 func (s *StorageImpl) SaveCredential(cred internal.Credential) error {
 	_, err := DBStorage.DB.Exec(`
 		INSERT INTO credentials (uuid, user_id, data, meta) VALUES ($1, $2, $3, $4)
@@ -112,6 +127,8 @@ func (s *StorageImpl) SaveCredential(cred internal.Credential) error {
 	return nil
 }
 
+// GetCredentials возвращает список учётных данных пользователя по его ID.
+// Если данные не найдены, возвращается ошибка ErrNotFound.
 func (s *StorageImpl) GetCredentials(userID string) ([]internal.Credential, error) {
 	rows, err := DBStorage.DB.Query(`
 		SELECT uuid, user_id, data, meta FROM credentials WHERE user_id=$1

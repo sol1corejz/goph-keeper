@@ -13,6 +13,13 @@ import (
 	"time"
 )
 
+// HashPassword хеширует пароль с использованием bcrypt.
+// Принимает:
+//   - password: строка, представляющая пароль для хеширования.
+//
+// Возвращает:
+//   - строка: хешированный пароль.
+//   - error: ошибка, если процесс хеширования завершился неудачно.
 func HashPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -21,38 +28,65 @@ func HashPassword(password string) (string, error) {
 	return string(hashedPassword), nil
 }
 
+// RegisterHandler обрабатывает запросы на регистрацию новых пользователей.
+//
+// Запрос должен содержать:
+//   - JSON-объект с полями "username" и "password".
+//
+// Алгоритм работы:
+//  1. Извлечение конфигурации сервера из локального контекста.
+//  2. Парсинг входных данных запроса.
+//  3. Генерация уникального идентификатора пользователя.
+//  4. Хеширование пароля.
+//  5. Добавление нового пользователя в базу данных.
+//  6. Генерация JWT токена для авторизованного сеанса.
+//  7. Установка токена в HTTP cookie.
+//  8. Возврат ответа о результате регистрации.
+//
+// Ответы:
+//   - 201 Created: Успешная регистрация пользователя, токен установлен в cookie.
+//   - 400 Bad Request: Некорректные входные данные.
+//   - 500 Internal Server Error: Ошибка при обработке запроса.
+//
+// Параметры:
+//   - c: Контекст запроса (Fiber).
+//
+// Возвращает:
+//   - HTTP-ответ с соответствующим статусом и сообщением.
 func RegisterHandler(c *fiber.Ctx) error {
-	// Получение конфига из контекста
+	// Получение конфигурации из контекста
 	cfg := c.Locals("config").(*configs.ServerConfig)
 
 	// Переменная для входных данных
 	var registerPayload internal.AuthPayload
 
-	//Парсинг входных данных
+	// Парсинг входных данных
 	err := json.Unmarshal(c.Body(), &registerPayload)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
 
-	// Генерация айди пользователя
+	// Генерация уникального идентификатора пользователя
 	userUuid := uuid.New().String()
 
 	// Хеширование пароля
 	hashedPassword, err := HashPassword(registerPayload.Password)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to hash password",
+		})
 	}
 
-	// Добавление пользователя в базу данных
+	// Создание записи пользователя для базы данных
 	userData := commonModels.User{
 		ID:       userUuid,
 		Username: registerPayload.Username,
 		Password: hashedPassword,
 	}
 
-	// Создание пользователя в бд
+	// Добавление пользователя в базу данных
 	err = storage.DBStorage.CreateUser(userData)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -60,15 +94,15 @@ func RegisterHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	// Генерация токена
+	// Генерация JWT токена
 	token, err := auth.GenerateToken(cfg, userUuid)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err,
+			"error": "failed to generate token",
 		})
 	}
 
-	// Установка токена в куки
+	// Установка токена в cookie
 	c.Cookie(&fiber.Cookie{
 		Name:     "token",
 		Value:    token,
@@ -76,7 +110,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 		HTTPOnly: true,
 	})
 
-	// Отправка ответа
+	// Отправка успешного ответа
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": "register successfully",
 	})
