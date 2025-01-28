@@ -47,6 +47,12 @@ func main() {
 
 	app := fiber.New()
 
+	// Подключение Swagger UI с вашим YAML файлом
+	app.Get("../../api/*", func(c *fiber.Ctx) error {
+		c.SendFile("./docs/swagger.yaml")
+		return nil
+	})
+
 	// Middleware для добавления конфигурации в контекст
 	app.Use(func(c *fiber.Ctx) error {
 		c.Locals("config", config)

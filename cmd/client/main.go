@@ -6,6 +6,8 @@ import (
 	"github.com/sol1corejz/goph-keeper/configs"
 )
 
+var serverURL, username, password string
+
 func main() {
 	fmt.Println("GophKeeper Client v0.1")
 

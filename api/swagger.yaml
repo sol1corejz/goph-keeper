@@ -1,0 +1,60 @@
+openapi: 3.0.0
+info:
+  title: "User Registration API"
+  description: "API for user registration with password hashing and JWT token generation."
+  version: "1.0.0"
+servers:
+  - url: "http://localhost:8080"
+    description: "Local server"
+paths:
+  /api/register:
+    post:
+      summary: "Register a new user"
+      description: "Registers a new user by accepting username and password, hashing the password, creating the user in the database, and generating a JWT token."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: "john_doe"
+                password:
+                  type: string
+                  example: "mysecurepassword"
+              required:
+                - username
+                - password
+      responses:
+        '201':
+          description: "User registered successfully. Token set in cookie."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: string
+                    example: "register successfully"
+        '400':
+          description: "Bad request. Invalid input data."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid request data."
+        '500':
+          description: "Internal server error. Failed to process the request."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "failed to hash password"
