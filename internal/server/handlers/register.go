@@ -5,7 +5,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/sol1corejz/goph-keeper/configs"
-	commonModels "github.com/sol1corejz/goph-keeper/internal/common/models"
 	"github.com/sol1corejz/goph-keeper/internal/server/auth"
 	internal "github.com/sol1corejz/goph-keeper/internal/server/models"
 	storage "github.com/sol1corejz/goph-keeper/internal/server/storage"
@@ -13,6 +12,8 @@ import (
 	"time"
 )
 
+// HashPassword принимает обычный пароль и возвращает хешированный пароль.
+// Для хеширования используется bcrypt с дефолтным значением стоимости.
 func HashPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -21,6 +22,10 @@ func HashPassword(password string) (string, error) {
 	return string(hashedPassword), nil
 }
 
+// RegisterHandler обрабатывает запросы на регистрацию пользователя.
+// Она парсит входные данные из тела запроса, хеширует пароль пользователя,
+// генерирует уникальный ID для пользователя и сохраняет данные пользователя в базе данных.
+// Затем генерируется токен аутентификации, который сохраняется в cookie, и возвращается сообщение об успешной регистрации.
 func RegisterHandler(c *fiber.Ctx) error {
 	// Получение конфига из контекста
 	cfg := c.Locals("config").(*configs.ServerConfig)
@@ -28,7 +33,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 	// Переменная для входных данных
 	var registerPayload internal.AuthPayload
 
-	//Парсинг входных данных
+	// Парсинг входных данных
 	err := json.Unmarshal(c.Body(), &registerPayload)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -46,7 +51,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 	}
 
 	// Добавление пользователя в базу данных
-	userData := commonModels.User{
+	userData := internal.User{
 		ID:       userUuid,
 		Username: registerPayload.Username,
 		Password: hashedPassword,

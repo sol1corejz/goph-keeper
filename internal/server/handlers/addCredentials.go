@@ -6,18 +6,20 @@ import (
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/google/uuid"
 	"github.com/sol1corejz/goph-keeper/configs"
-	commonModels "github.com/sol1corejz/goph-keeper/internal/common/models"
 	"github.com/sol1corejz/goph-keeper/internal/server/auth"
 	internal "github.com/sol1corejz/goph-keeper/internal/server/models"
 	storage "github.com/sol1corejz/goph-keeper/internal/server/storage"
 )
 
+// AddCredentials обрабатывает запросы на добавление новых учетных данных пользователя.
+// Она извлекает токен из cookies, проверяет его валидность и авторизует пользователя.
+// Затем она парсит входные данные, создает запись об учетных данных в базе данных и сохраняет её.
 func AddCredentials(c *fiber.Ctx) error {
 
 	// Получение конфига из контекста
 	cfg := c.Locals("config").(*configs.ServerConfig)
 
-	// Получение токане из куки
+	// Получение токена из cookies
 	token := c.Cookies("token")
 	if token == "" {
 		log.Info("No token cookie provided")
@@ -45,14 +47,15 @@ func AddCredentials(c *fiber.Ctx) error {
 		})
 	}
 
-	// Подготовка данных для бд
-	credentialsData := commonModels.Credential{
+	// Подготовка данных для сохранения в базе данных
+	credentialsData := internal.Credential{
 		ID:     uuid.New().String(),
 		UserID: userID,
 		Data:   credentialsPayload.Data,
 		Meta:   credentialsPayload.Meta,
 	}
 
+	// Сохранение учетных данных в базе данных
 	err = storage.DBStorage.SaveCredential(credentialsData)
 	if err != nil {
 		log.Info("failed to save credential")
@@ -61,8 +64,8 @@ func AddCredentials(c *fiber.Ctx) error {
 		})
 	}
 
+	// Отправка успешного ответа
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": "credential added",
 	})
-
 }

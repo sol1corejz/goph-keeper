@@ -6,33 +6,40 @@ import (
 	log "github.com/gofiber/fiber/v2/log"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/sol1corejz/goph-keeper/configs"
-	internal "github.com/sol1corejz/goph-keeper/internal/common/models"
+	internal "github.com/sol1corejz/goph-keeper/internal/server/models"
 )
 
-// Storage - Абстракия для хранилища, для возможного расширения и использования разных видов хранения
-// Также нужно для написания тестов, чтобы содавать моковое хранилище
+// Storage - интерфейс хранилища данных, предоставляющий методы для работы с пользователями и учетными данными.
+// Используется для расширяемости и удобства тестирования.
 type Storage interface {
+	// CreateUser добавляет нового пользователя в хранилище.
 	CreateUser(user internal.User) error
+	// GetUser получает данные пользователя по имени пользователя.
 	GetUser(username string) (internal.User, error)
+	// SaveCredential сохраняет учетные данные пользователя.
 	SaveCredential(userID string, cred internal.Credential) error
+	// GetCredentials возвращает все учетные данные пользователя.
 	GetCredentials(userID string) ([]internal.Credential, error)
 }
 
-// StorageImpl структура реализующая интерфейс Storage
+// StorageImpl - реализация интерфейса Storage, использующая базу данных PostgreSQL.
 type StorageImpl struct {
 	DB *sql.DB
 }
 
-// DBStorage объект использующийся для использования методов хранилища
+// DBStorage - глобальный объект для работы с базой данных.
 var DBStorage StorageImpl
+
+// ErrNotFound - ошибка, возвращаемая при отсутствии данных.
 var ErrNotFound = errors.New("not found")
 
+// ConnectDB устанавливает соединение с базой данных и создает необходимые таблицы.
 func ConnectDB(cfg *configs.ServerConfig) error {
-
 	if cfg.Storage.ConnectionString == "" {
 		return errors.New("no connection string provided")
 	}
 
+	// Открываем соединение с базой данных PostgreSQL
 	db, err := sql.Open("pgx", cfg.Storage.ConnectionString)
 	if err != nil {
 		log.Fatal(err)
@@ -41,8 +48,8 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 
 	DBStorage.DB = db
 
-	// Создание таблицы users
-	_, err = DBStorage.DB.Query(`
+	// Создаем таблицу пользователей, если она отсутствует
+	_, err = DBStorage.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS users (
     		uuid UUID PRIMARY KEY,
     		username TEXT NOT NULL UNIQUE,
@@ -54,8 +61,9 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 		return err
 	}
 
+	// Создаем таблицу учетных данных пользователей
 	_, err = DBStorage.DB.Exec(`
-	CREATE TABLE IF NOT EXISTS credentials (
+		CREATE TABLE IF NOT EXISTS credentials (
 			uuid UUID PRIMARY KEY,
 			user_id UUID NOT NULL REFERENCES users(uuid) ON DELETE CASCADE,
 			data TEXT NOT NULL,
@@ -70,8 +78,8 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 	return nil
 }
 
+// CreateUser добавляет нового пользователя в базу данных.
 func (s *StorageImpl) CreateUser(user internal.User) error {
-
 	_, err := DBStorage.DB.Exec(`
 		INSERT INTO users (uuid, username, password) VALUES ($1, $2, $3)
 	`, user.ID, user.Username, user.Password)
@@ -83,8 +91,9 @@ func (s *StorageImpl) CreateUser(user internal.User) error {
 
 	return nil
 }
-func (s *StorageImpl) GetUser(username string) (internal.User, error) {
 
+// GetUser получает данные пользователя по имени пользователя.
+func (s *StorageImpl) GetUser(username string) (internal.User, error) {
 	var user internal.User
 	err := DBStorage.DB.QueryRow(`
 		SELECT * FROM users WHERE username=$1
@@ -99,6 +108,8 @@ func (s *StorageImpl) GetUser(username string) (internal.User, error) {
 
 	return user, nil
 }
+
+// SaveCredential сохраняет учетные данные пользователя в базе данных.
 func (s *StorageImpl) SaveCredential(cred internal.Credential) error {
 	_, err := DBStorage.DB.Exec(`
 		INSERT INTO credentials (uuid, user_id, data, meta) VALUES ($1, $2, $3, $4)
@@ -112,6 +123,7 @@ func (s *StorageImpl) SaveCredential(cred internal.Credential) error {
 	return nil
 }
 
+// GetCredentials получает все учетные данные, принадлежащие пользователю.
 func (s *StorageImpl) GetCredentials(userID string) ([]internal.Credential, error) {
 	rows, err := DBStorage.DB.Query(`
 		SELECT uuid, user_id, data, meta FROM credentials WHERE user_id=$1
@@ -123,7 +135,6 @@ func (s *StorageImpl) GetCredentials(userID string) ([]internal.Credential, erro
 			return nil, ErrNotFound
 		}
 		log.Info("failed to retrieve credentials", err.Error())
-
 		return nil, err
 	}
 	defer rows.Close()

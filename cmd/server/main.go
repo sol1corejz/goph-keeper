@@ -9,11 +9,13 @@ import (
 	"sync"
 )
 
+// Singleton для конфигурации сервера
 var (
 	config *configs.ServerConfig
 	once   sync.Once
 )
 
+// main - входная точка приложения
 func main() {
 	var err error
 	// Загрузка конфигурации

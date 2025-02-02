@@ -4,16 +4,19 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/sol1corejz/goph-keeper/configs"
-	internal "github.com/sol1corejz/goph-keeper/internal/common/models"
 	"github.com/sol1corejz/goph-keeper/internal/server/auth"
+	internal "github.com/sol1corejz/goph-keeper/internal/server/models"
 	storage "github.com/sol1corejz/goph-keeper/internal/server/storage"
 )
 
+// GetCredentials обрабатывает запросы на получение учетных данных пользователя.
+// Она извлекает токен из cookies, проверяет его валидность и авторизует пользователя.
+// После этого она извлекает учетные данные из базы данных и возвращает их в ответе.
 func GetCredentials(c *fiber.Ctx) error {
 	// Получение конфига из контекста
 	cfg := c.Locals("config").(*configs.ServerConfig)
 
-	// Получение токане из куки
+	// Получение токена из cookies
 	token := c.Cookies("token")
 	if token == "" {
 		log.Info("No token cookie provided")
@@ -31,6 +34,7 @@ func GetCredentials(c *fiber.Ctx) error {
 		})
 	}
 
+	// Получение учетных данных пользователя из базы данных
 	var credentialsData []internal.Credential
 	credentialsData, err = storage.DBStorage.GetCredentials(userID)
 	if err != nil {
@@ -39,6 +43,7 @@ func GetCredentials(c *fiber.Ctx) error {
 		})
 	}
 
+	// Отправка учетных данных в ответе
 	return c.JSON(fiber.Map{
 		"credentials": credentialsData,
 	})

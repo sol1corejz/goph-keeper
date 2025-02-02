@@ -5,21 +5,25 @@ import (
 	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/sol1corejz/goph-keeper/configs"
-	auth "github.com/sol1corejz/goph-keeper/internal/server/auth"
+	"github.com/sol1corejz/goph-keeper/internal/server/auth"
 	internal "github.com/sol1corejz/goph-keeper/internal/server/models"
 	storage "github.com/sol1corejz/goph-keeper/internal/server/storage"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
 
+// LoginHandler обрабатывает запросы на вход пользователя.
+// Она парсит входные данные из тела запроса, проверяет логин и пароль пользователя
+// с сохранёнными данными в базе данных, генерирует токен аутентификации и сохраняет его в cookie.
+// В случае ошибки возвращается сообщение об ошибке с соответствующим статусом.
 func LoginHandler(c *fiber.Ctx) error {
-	//Получение конфига из контекста
+	// Получение конфига из контекста
 	cfg := c.Locals("config").(*configs.ServerConfig)
 
 	// Переменная для входных данных
 	var loginPayload internal.AuthPayload
 
-	//Парсинг входных данных
+	// Парсинг входных данных
 	err := json.Unmarshal(c.Body(), &loginPayload)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -27,7 +31,7 @@ func LoginHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	// Получение пользователя из бд
+	// Получение пользователя из базы данных
 	userData, err := storage.DBStorage.GetUser(loginPayload.Username)
 	if err != nil {
 		if errors.Is(storage.ErrNotFound, err) {
@@ -40,7 +44,7 @@ func LoginHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	// Сравнение пароля из входных данных и из бд
+	// Сравнение пароля из входных данных с паролем из базы данных
 	err = bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(loginPayload.Password))
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -48,10 +52,10 @@ func LoginHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	// Генерация токена
+	// Генерация токена аутентификации
 	token, err := auth.GenerateToken(cfg, userData.ID)
 
-	// Установка токена в куки
+	// Установка токена в cookie
 	c.Cookie(&fiber.Cookie{
 		Name:     "token",
 		Value:    token,
@@ -59,7 +63,7 @@ func LoginHandler(c *fiber.Ctx) error {
 		HTTPOnly: true,
 	})
 
-	// Отправка ответа
+	// Отправка успешного ответа
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"success": "login successfully",
 	})
