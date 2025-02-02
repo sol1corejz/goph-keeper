@@ -30,8 +30,6 @@ var TokenExp = time.Hour * 60
 // Включает в токен информацию о времени истечения и UserID.
 func GenerateToken(config *configs.ServerConfig, userID string) (string, error) {
 
-	log.Info(userID)
-
 	// Создание нового токена с указанными claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
