@@ -17,7 +17,9 @@ type Storage interface {
 	// GetUser получает данные пользователя по имени пользователя.
 	GetUser(username string) (internal.User, error)
 	// SaveCredential сохраняет учетные данные пользователя.
-	SaveCredential(userID string, cred internal.Credential) error
+	SaveCredential(cred internal.Credential) error
+	// EditCredential сохраняет учетные данные пользователя.
+	EditCredential(cred internal.Credential) error
 	// GetCredentials возвращает все учетные данные пользователя.
 	GetCredentials(userID string) ([]internal.Credential, error)
 }
@@ -114,6 +116,20 @@ func (s *StorageImpl) SaveCredential(cred internal.Credential) error {
 	_, err := DBStorage.DB.Exec(`
 		INSERT INTO credentials (uuid, user_id, data, meta) VALUES ($1, $2, $3, $4)
 	`, cred.ID, cred.UserID, cred.Data, cred.Meta)
+
+	if err != nil {
+		log.Info("failed to save credential", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+// EditCredential обновляет учетные данные пользователя в базе данных.
+func (s *StorageImpl) EditCredential(cred internal.Credential) error {
+	_, err := DBStorage.DB.Exec(`
+		UPDATE credentials SET data = $1, meta = $2 WHERE uuid = $3
+	`, cred.Data, cred.Meta, cred.ID)
 
 	if err != nil {
 		log.Info("failed to save credential", err.Error())

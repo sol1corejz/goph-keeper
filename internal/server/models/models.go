@@ -18,6 +18,14 @@ type CredentialPayload struct {
 	Meta string `json:"meta"` // Дополнительные метаданные (например, описание, время создания)
 }
 
+// EditCredentialPayload содержит учетные данные пользователя.
+// Используется для передачи данных на редактирование с дополнительными метаданными.
+type EditCredentialPayload struct {
+	ID   string `json:"id"`
+	Data string `json:"data"` // Основная информация (например, логин и пароль)
+	Meta string `json:"meta"` // Дополнительные метаданные (например, описание, время создания)
+}
+
 // Credential представляет учетную запись пользователя, сохраненную в системе.
 type Credential struct {
 	ID     string `json:"id"`      // Уникальный идентификатор учетной записи
