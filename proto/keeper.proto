@@ -33,7 +33,8 @@ message Credentials {
 }
 
 message AddCredentialsRequest {
-  Credentials credentials = 1;
+  string token = 1;
+  Credentials credentials = 2;
 }
 
 message AddCredentialsResponse {
@@ -41,8 +42,9 @@ message AddCredentialsResponse {
 }
 
 message EditCredentialsRequest {
-  string id = 1;
-  Credentials credentials = 2;
+  string token = 1;
+  string id = 2;
+  Credentials credentials = 3;
 }
 
 message EditCredentialsResponse {
@@ -50,7 +52,8 @@ message EditCredentialsResponse {
 }
 
 message GetCredentialsRequest {
-  string id = 1;
+  string token = 1;
+  string id = 2;
 }
 
 message GetCredentialsResponse {

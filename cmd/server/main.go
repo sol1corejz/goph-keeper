@@ -9,48 +9,67 @@ import (
 	"github.com/sol1corejz/goph-keeper/internal/server/cert"
 	internal "github.com/sol1corejz/goph-keeper/internal/server/handlers"
 	storage "github.com/sol1corejz/goph-keeper/internal/server/storage"
+	pb "github.com/sol1corejz/goph-keeper/proto"
+	"google.golang.org/grpc"
+	"net"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 )
 
-// Singleton для конфигурации сервера
 var (
 	config *configs.ServerConfig
 	once   sync.Once
 )
 
-// Глобальные переменные для информации о версии сборки.
 var (
-	buildVersion = "N/A" // Версия сборки, передается на этапе компиляции.
-	buildDate    = "N/A" // Дата сборки, передается на этапе компиляции.
+	buildVersion = "N/A"
+	buildDate    = "N/A"
 )
 
-// main - входная точка приложения
 func main() {
-	// Канал сообщения о закртии соединения
-	idleConnsClosed := make(chan struct{})
-	// Канал для перенаправления прерываний
-	sigint := make(chan os.Signal, 1)
-	// Регистрация прерываний
-	signal.Notify(sigint, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	//Контекст отмены
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	idleConnsClosed := make(chan struct{})
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	// Инициализация конфигурации
+	if err := initConfig(); err != nil {
+		log.Fatal("Failed to load server config:", err)
+	}
+
+	// Подключение к базе данных
+	if err := initDatabase(); err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+
+	// Создание и настройка сервера
+	app := setupServer()
+
+	// Обработка сигнала завершения
+	go handleShutdown(ctx, app, idleConnsClosed, sigint)
+
+	// Запуск сервера
+	startServer(app)
+
+	// Запуск grpc
+	grpcStart()
+}
+
+func initConfig() error {
 	var err error
-	// Загрузка конфигурации
 	config, err = LoadServerConfig("configs/server_config.yaml")
-	if err != nil {
-		log.Info("Failed to load server config", err.Error())
-	}
+	return err
+}
 
-	err = storage.ConnectDB(config)
-	if err != nil {
-		log.Info("Failed to connect to database", err.Error())
-	}
+func initDatabase() error {
+	return storage.ConnectDB(config)
+}
 
+func setupServer() *fiber.App {
 	app := fiber.New()
 
 	// Middleware для добавления конфигурации в контекст
@@ -59,48 +78,65 @@ func main() {
 		return c.Next()
 	})
 
-	// Вывод информации о версии сборки.
+	// Вывод информации о версии сборки
 	fmt.Printf("Build version: %s\n", buildVersion)
 	fmt.Printf("Build date: %s\n", buildDate)
 
-	// Горутина для обработки сигнала завершения
-	go func() {
-		<-sigint
+	// Настройка маршрутов
+	setupRoutes(app)
 
-		// Закрываем сервер
-		if err := app.ShutdownWithContext(ctx); err != nil {
-			log.Error("HTTP server Shutdown failed", err)
-		}
+	return app
+}
 
-		// Закрываем канал для уведомления о завершении
-		close(idleConnsClosed)
-	}()
-
-	// Регистрация маршрутов
+func setupRoutes(app *fiber.App) {
 	app.Get("/", internal.RegisterHandler)
 	app.Post("/register", internal.RegisterHandler)
 	app.Post("/login", internal.LoginHandler)
 	app.Post("/credentials", internal.AddCredentials)
 	app.Post("/edit-credentials", internal.EditCredentials)
 	app.Get("/credentials", internal.GetCredentials)
+}
 
-	// Создаем сертификат
+func handleShutdown(ctx context.Context, app *fiber.App, idleConnsClosed chan struct{}, sigint chan os.Signal) {
+	<-sigint
+	if err := app.ShutdownWithContext(ctx); err != nil {
+		log.Error("HTTP server Shutdown failed:", err)
+	}
+	close(idleConnsClosed)
+}
+
+func startServer(app *fiber.App) {
+	// Создание сертификата
 	if !cert.CertExists() {
 		log.Info("Generating new TLS certificate")
 		certPEM, keyPEM := cert.GenerateCert()
 		if err := cert.SaveCert(certPEM, keyPEM); err != nil {
-			log.Errorf("failed to save TLS certificate: %w", err)
+			log.Errorf("failed to save TLS certificate: %v", err)
 		}
 	}
 
 	log.Info("Loading existing TLS certificate")
-
-	// Запускаем сервер
 	app.ListenTLS(config.Server.Address, cert.CertificateFilePath, cert.KeyFilePath)
-
 }
 
-// LoadServerConfig загружает конфиг с использованием Singleton
+func grpcStart() {
+	// определяем порт для сервера
+	listen, err := net.Listen("tcp", ":3200")
+	if err != nil {
+		log.Error(err)
+	}
+	// создаём gRPC-сервер без зарегистрированной службы
+	s := grpc.NewServer()
+	// регистрируем сервис
+	pb.RegisterKeeperServer(s, &internal.KeeperServer{Config: config})
+
+	fmt.Println("Сервер gRPC начал работу")
+	// получаем запрос gRPC
+	if err := s.Serve(listen); err != nil {
+		log.Error(err)
+	}
+}
+
 func LoadServerConfig(filePath string) (*configs.ServerConfig, error) {
 	var err error
 	once.Do(func() {
