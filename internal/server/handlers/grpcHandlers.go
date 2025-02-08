@@ -92,6 +92,7 @@ func (s *KeeperServer) LoginGrpc(ctx context.Context, in *pb.LoginRequest) (*pb.
 	}, nil
 }
 
+// AddCredentialsGrpc — gRPC-обработчик для добавления данных пользователя.
 func (s *KeeperServer) AddCredentialsGrpc(ctx context.Context, in *pb.AddCredentialsRequest) (*pb.AddCredentialsResponse, error) {
 	// Получение токена
 	token := in.Token
@@ -136,6 +137,7 @@ func (s *KeeperServer) AddCredentialsGrpc(ctx context.Context, in *pb.AddCredent
 	return &pb.AddCredentialsResponse{}, nil
 }
 
+// EditCredentialsGrpc — gRPC-обработчик для редактирования данных пользователя.
 func (s *KeeperServer) EditCredentialsGrpc(ctx context.Context, in *pb.EditCredentialsRequest) (*pb.EditCredentialsResponse, error) {
 	// Получение токена
 	token := in.Token
@@ -181,6 +183,7 @@ func (s *KeeperServer) EditCredentialsGrpc(ctx context.Context, in *pb.EditCrede
 
 }
 
+// GetCredentialsGrpc — gRPC-обработчик для получения данных польхователя.
 func (s *KeeperServer) GetCredentialsGrpc(ctx context.Context, in *pb.GetCredentialsRequest) (*pb.GetCredentialsResponse, error) {
 	// Получение токена
 	token := in.Token
