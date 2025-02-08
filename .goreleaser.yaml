@@ -1,4 +1,4 @@
-project_name: mycli  # Имя бинарника
+project_name: goph-keeper  # Имя бинарника
 
 builds:
   - id: mycli_build
