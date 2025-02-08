@@ -171,7 +171,7 @@ func (s *KeeperServer) EditCredentials(ctx context.Context, in *pb.EditCredentia
 
 	// Подготовка данных для сохранения в базе данных
 	credentialsData := models.Credential{
-		ID:     uuid.New().String(),
+		ID:     in.Id,
 		UserID: userID,
 		Data:   credentialsPayload.Data,
 		Meta:   credentialsPayload.Meta,

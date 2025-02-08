@@ -47,7 +47,6 @@ var loginCmd = &cobra.Command{
 				return
 			}
 			log.Fatalf("Ошибка авторизации: %v", err)
-			return
 		}
 
 		// Сохраняем токен
