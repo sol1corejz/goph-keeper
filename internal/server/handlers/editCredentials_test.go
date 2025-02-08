@@ -2,7 +2,6 @@ package internal_test
 
 import (
 	"encoding/json"
-	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -10,17 +9,7 @@ import (
 	"testing"
 )
 
-func checkIsAuthorized(token string) (string, error) {
-	if token == "valid-token" {
-		return "123", nil
-	} else if token == "invalid-token" {
-		return "", errors.New("invalid token")
-	} else {
-		return "", errors.New("token is invalid")
-	}
-}
-
-func AddCredentials(c *fiber.Ctx) error {
+func EditCredentials(c *fiber.Ctx) error {
 	// Получение токена из cookies
 	token := c.Cookies("token")
 	if token == "" {
@@ -38,12 +27,12 @@ func AddCredentials(c *fiber.Ctx) error {
 	}
 
 	// Отправка успешного ответа
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message": "credential added",
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "credentials updated",
 	})
 }
 
-func TestAddCredentialsHandler(t *testing.T) {
+func TestEditCredentialsHandler(t *testing.T) {
 	type want struct {
 		code int
 		body string
@@ -55,11 +44,11 @@ func TestAddCredentialsHandler(t *testing.T) {
 		want  want
 	}{
 		{
-			name:  "Test successful credential addition",
+			name:  "Test successful credential update",
 			token: "valid-token",
 			want: want{
-				code: fiber.StatusCreated,
-				body: "credential added",
+				code: fiber.StatusOK,
+				body: "credentials updated",
 			},
 		},
 		{
@@ -86,10 +75,10 @@ func TestAddCredentialsHandler(t *testing.T) {
 			app := fiber.New()
 
 			// Регистрируем хендлер
-			app.Post("/credentials", AddCredentials)
+			app.Post("/edit-credentials", EditCredentials)
 
 			// Создаем запрос с токеном в cookies
-			req := httptest.NewRequest(http.MethodPost, "/credentials", nil)
+			req := httptest.NewRequest(http.MethodPost, "/edit-credentials", nil)
 			req.Header.Set("Content-Type", "application/json")
 			req.AddCookie(&http.Cookie{
 				Name:  "token",

@@ -64,7 +64,7 @@ func EditCredentials(c *fiber.Ctx) error {
 	}
 
 	// Отправка успешного ответа
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": "credentials updated",
 	})
 }

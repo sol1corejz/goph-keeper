@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = ".";
+
+message User {
+  string username = 1;
+  string password = 2;
+}
+
+message RegisterRequest {
+  User userData = 1;
+}
+
+message RegisterResponse {
+  string token = 1;
+  string error = 2;
+}
+
+message LoginRequest {
+  User userData = 1;
+}
+
+message LoginResponse {
+  string token = 1;
+  string error = 2;
+}
+
+message Credentials {
+  string data = 1;
+  string meta = 2;
+}
+
+message AddCredentialsRequest {
+  Credentials credentials = 1;
+}
+
+message AddCredentialsResponse {
+ string error = 1;
+}
+
+message EditCredentialsRequest {
+  string id = 1;
+  Credentials credentials = 2;
+}
+
+message EditCredentialsResponse {
+  string error = 1;
+}
+
+message GetCredentialsRequest {
+  string id = 1;
+}
+
+message GetCredentialsResponse {
+  repeated Credentials credentials = 1;
+  string error = 2;
+}
+
+service Keeper {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc AddCredentials(AddCredentialsRequest) returns (AddCredentialsResponse);
+  rpc EditCredentials(EditCredentialsRequest) returns (EditCredentialsResponse);
+  rpc GetCredentials(GetCredentialsRequest) returns (GetCredentialsResponse);
+}
