@@ -35,6 +35,9 @@ var DBStorage StorageImpl
 // ErrNotFound - ошибка, возвращаемая при отсутствии данных.
 var ErrNotFound = errors.New("not found")
 
+// ErrAlreadyExists - ошибка, возвращаемая при существовании данных.
+var ErrAlreadyExists = errors.New("already exists")
+
 // ConnectDB устанавливает соединение с базой данных и создает необходимые таблицы.
 func ConnectDB(cfg *configs.ServerConfig) error {
 	if cfg.Storage.ConnectionString == "" {
@@ -82,7 +85,19 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 
 // CreateUser добавляет нового пользователя в базу данных.
 func (s *StorageImpl) CreateUser(user internal.User) error {
-	_, err := DBStorage.DB.Exec(`
+	var exists bool
+	err := DBStorage.DB.QueryRow(`
+        SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)
+    `, user.Username).Scan(&exists)
+	if err != nil {
+		log.Error("failed to check user: ", err)
+		return err
+	}
+	if exists {
+		return ErrAlreadyExists
+	}
+
+	_, err = DBStorage.DB.Exec(`
 		INSERT INTO users (uuid, username, password) VALUES ($1, $2, $3)
 	`, user.ID, user.Username, user.Password)
 

@@ -32,31 +32,40 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	idleConnsClosed := make(chan struct{})
 	sigint := make(chan os.Signal, 1)
 	signal.Notify(sigint, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	// Инициализация конфигурации
 	if err := initConfig(); err != nil {
 		log.Fatal("Failed to load server config:", err)
 	}
 
-	// Подключение к базе данных
 	if err := initDatabase(); err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Создание и настройка сервера
 	app := setupServer()
 
-	// Обработка сигнала завершения
-	go handleShutdown(ctx, app, idleConnsClosed, sigint)
+	// Запускаем HTTP сервер в отдельной горутине
+	go startServer(app)
 
-	// Запуск сервера
-	startServer(app)
+	// Запускаем gRPC сервер в отдельной горутине
+	grpcClosed := make(chan struct{})
+	go grpcStart(ctx, grpcClosed)
 
-	// Запуск grpc
-	grpcStart()
+	// Ожидание сигнала завершения
+	<-sigint
+	log.Info("Получен сигнал завершения, останавливаем серверы...")
+
+	cancel() // Отправляем сигнал завершения контексту
+
+	// Завершаем Fiber
+	if err := app.ShutdownWithContext(ctx); err != nil {
+		log.Error("Ошибка при завершении HTTP сервера:", err)
+	}
+
+	// Ждём завершения gRPC-сервера
+	<-grpcClosed
+	log.Info("Сервер полностью завершён")
 }
 
 func initConfig() error {
@@ -82,9 +91,7 @@ func setupServer() *fiber.App {
 	fmt.Printf("Build version: %s\n", buildVersion)
 	fmt.Printf("Build date: %s\n", buildDate)
 
-	// Настройка маршрутов
 	setupRoutes(app)
-
 	return app
 }
 
@@ -95,14 +102,6 @@ func setupRoutes(app *fiber.App) {
 	app.Post("/credentials", internal.AddCredentials)
 	app.Post("/edit-credentials", internal.EditCredentials)
 	app.Get("/credentials", internal.GetCredentials)
-}
-
-func handleShutdown(ctx context.Context, app *fiber.App, idleConnsClosed chan struct{}, sigint chan os.Signal) {
-	<-sigint
-	if err := app.ShutdownWithContext(ctx); err != nil {
-		log.Error("HTTP server Shutdown failed:", err)
-	}
-	close(idleConnsClosed)
 }
 
 func startServer(app *fiber.App) {
@@ -116,24 +115,32 @@ func startServer(app *fiber.App) {
 	}
 
 	log.Info("Loading existing TLS certificate")
-	app.ListenTLS(config.Server.Address, cert.CertificateFilePath, cert.KeyFilePath)
+	if err := app.ListenTLS(config.Server.Address, cert.CertificateFilePath, cert.KeyFilePath); err != nil {
+		log.Fatal("Ошибка запуска HTTP сервера:", err)
+	}
 }
 
-func grpcStart() {
-	// определяем порт для сервера
+func grpcStart(ctx context.Context, closed chan struct{}) {
 	listen, err := net.Listen("tcp", ":3200")
 	if err != nil {
-		log.Error(err)
+		log.Error("Ошибка при запуске gRPC сервера:", err)
+		close(closed)
+		return
 	}
-	// создаём gRPC-сервер без зарегистрированной службы
+
 	s := grpc.NewServer()
-	// регистрируем сервис
 	pb.RegisterKeeperServer(s, &internal.KeeperServer{Config: config})
 
-	fmt.Println("Сервер gRPC начал работу")
-	// получаем запрос gRPC
+	go func() {
+		<-ctx.Done()
+		log.Info("Останавливаем gRPC сервер...")
+		s.GracefulStop()
+		close(closed)
+	}()
+
+	log.Info("gRPC сервер запущен на порту 3200")
 	if err := s.Serve(listen); err != nil {
-		log.Error(err)
+		log.Error("Ошибка работы gRPC сервера:", err)
 	}
 }
 
