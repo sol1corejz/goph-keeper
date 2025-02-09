@@ -6,7 +6,7 @@ builds:
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
     ldflags:
-      - "-s -w"
+      - "-s -w -X main.buildVersion={{.Tag}} -X main.buildDate={{.Date}}"
 
 archives:
   - id: 'tar'
