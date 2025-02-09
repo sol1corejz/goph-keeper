@@ -144,6 +144,7 @@ func grpcStart(ctx context.Context, closed chan struct{}) {
 	}
 }
 
+// LoadServerConfig - Функция загрузки конфигурации из файла с конфигурациями
 func LoadServerConfig(filePath string) (*configs.ServerConfig, error) {
 	var err error
 	once.Do(func() {

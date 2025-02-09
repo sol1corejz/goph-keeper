@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-// Функция для сохранения токена в файл
+// SaveTokenToFile - Функция для сохранения токена в файл
 func SaveTokenToFile(token string) error {
 	// Открытие файла для записи (если файла нет, он будет создан)
 	file, err := os.Create("token")
@@ -23,7 +23,7 @@ func SaveTokenToFile(token string) error {
 	return nil
 }
 
-// Функция для чтения токена из файла
+// ReadTokenFromFile - Функция для чтения токена из файла
 func ReadTokenFromFile() (string, error) {
 	// Открытие файла для чтения
 	file, err := os.Open("token")
