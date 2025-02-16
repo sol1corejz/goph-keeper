@@ -75,7 +75,7 @@ func initConfig() error {
 }
 
 func initDatabase() error {
-	return storage.ConnectDB(config)
+	return storage.DBStorage.ConnectDB(config)
 }
 
 func setupServer() *fiber.App {

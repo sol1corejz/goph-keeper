@@ -39,7 +39,7 @@ var ErrNotFound = errors.New("not found")
 var ErrAlreadyExists = errors.New("already exists")
 
 // ConnectDB устанавливает соединение с базой данных и создает необходимые таблицы.
-func ConnectDB(cfg *configs.ServerConfig) error {
+func (s *StorageImpl) ConnectDB(cfg *configs.ServerConfig) error {
 	if cfg.Storage.ConnectionString == "" {
 		return errors.New("no connection string provided")
 	}
@@ -51,10 +51,11 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 		return err
 	}
 
+	s.DB = db
 	DBStorage.DB = db
 
 	// Создаем таблицу пользователей, если она отсутствует
-	_, err = DBStorage.DB.Exec(`
+	_, err = s.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS users (
     		uuid UUID PRIMARY KEY,
     		username TEXT NOT NULL UNIQUE,
@@ -67,7 +68,7 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 	}
 
 	// Создаем таблицу учетных данных пользователей
-	_, err = DBStorage.DB.Exec(`
+	_, err = s.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS credentials (
 			uuid UUID PRIMARY KEY,
 			user_id UUID NOT NULL REFERENCES users(uuid) ON DELETE CASCADE,
@@ -86,7 +87,7 @@ func ConnectDB(cfg *configs.ServerConfig) error {
 // CreateUser добавляет нового пользователя в базу данных.
 func (s *StorageImpl) CreateUser(user internal.User) error {
 	var exists bool
-	err := DBStorage.DB.QueryRow(`
+	err := s.DB.QueryRow(`
         SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)
     `, user.Username).Scan(&exists)
 	if err != nil {
@@ -97,7 +98,7 @@ func (s *StorageImpl) CreateUser(user internal.User) error {
 		return ErrAlreadyExists
 	}
 
-	_, err = DBStorage.DB.Exec(`
+	_, err = s.DB.Exec(`
 		INSERT INTO users (uuid, username, password) VALUES ($1, $2, $3)
 	`, user.ID, user.Username, user.Password)
 
@@ -112,7 +113,7 @@ func (s *StorageImpl) CreateUser(user internal.User) error {
 // GetUser получает данные пользователя по имени пользователя.
 func (s *StorageImpl) GetUser(username string) (internal.User, error) {
 	var user internal.User
-	err := DBStorage.DB.QueryRow(`
+	err := s.DB.QueryRow(`
 		SELECT * FROM users WHERE username=$1
 	`, username).Scan(&user.ID, &user.Username, &user.Password)
 
@@ -128,7 +129,7 @@ func (s *StorageImpl) GetUser(username string) (internal.User, error) {
 
 // SaveCredential сохраняет учетные данные пользователя в базе данных.
 func (s *StorageImpl) SaveCredential(cred internal.Credential) error {
-	_, err := DBStorage.DB.Exec(`
+	_, err := s.DB.Exec(`
 		INSERT INTO credentials (uuid, user_id, data, meta) VALUES ($1, $2, $3, $4)
 	`, cred.ID, cred.UserID, cred.Data, cred.Meta)
 
@@ -142,7 +143,7 @@ func (s *StorageImpl) SaveCredential(cred internal.Credential) error {
 
 // EditCredential обновляет учетные данные пользователя в базе данных.
 func (s *StorageImpl) EditCredential(cred internal.Credential) error {
-	_, err := DBStorage.DB.Exec(`
+	_, err := s.DB.Exec(`
 		UPDATE credentials SET data = $1, meta = $2 WHERE uuid = $3
 	`, cred.Data, cred.Meta, cred.ID)
 
@@ -156,7 +157,7 @@ func (s *StorageImpl) EditCredential(cred internal.Credential) error {
 
 // GetCredentials получает все учетные данные, принадлежащие пользователю.
 func (s *StorageImpl) GetCredentials(userID string) ([]internal.Credential, error) {
-	rows, err := DBStorage.DB.Query(`
+	rows, err := s.DB.Query(`
 		SELECT uuid, user_id, data, meta FROM credentials WHERE user_id=$1
 	`, userID)
 
