@@ -1,0 +1,17 @@
+server:
+  address: ":8080"       # Адрес, на котором запускается сервер
+  read_timeout: 10s      # Таймаут чтения запроса
+  write_timeout: 10s     # Таймаут записи ответа
+  idle_timeout: 120s     # Таймаут ожидания
+
+storage:
+  type: "postgres"       # Тип хранилища: postgres, file, или memory
+  connection_string: "postgres://postgres:12345678@localhost:5432/gophkeeper"
+
+security:
+  jwt_secret: "secret-key"   # Секретный ключ для генерации JWT
+  encryption_key: "encryption-key"  # Ключ шифрования данных
+
+logging:
+  level: "info"          # Уровень логирования: debug, info, warn, error
+  file: "logs/server.log" # Файл для логов (оставьте пустым для вывода в консоль)

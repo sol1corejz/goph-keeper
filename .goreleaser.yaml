@@ -1,0 +1,32 @@
+project_name: goph-keeper  # Имя бинарника
+
+builds:
+  - id: mycli_build
+    main: ./cmd/client/keepercli/main.go
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - "-s -w -X main.buildVersion={{.Tag}} -X main.buildDate={{.Date}}"
+
+archives:
+  - id: 'tar'
+    format: tar.gz
+    files:
+      - README.md
+
+  - id: "zip"
+    format: zip
+    files:
+      - README.md
+
+
+checksum:
+  name_template: "{{ .ProjectName }}_checksums.txt"
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  filters:
+    exclude:
+      - docs

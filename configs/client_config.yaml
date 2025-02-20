@@ -1,0 +1,11 @@
+client:
+  server_address: "http://localhost:8081"  # Адрес сервера
+  sync_interval: 30s                      # Интервал синхронизации данных
+  timeout: 10s                            # Таймаут запросов к серверу
+
+security:
+  encryption_key: "encryption-key"   # Ключ для локального шифрования
+
+logging:
+  level: "info"                           # Уровень логирования: debug, info, warn, error
+  file: "logs/client.log"                 # Файл для логов (оставьте пустым для вывода в консоль)
